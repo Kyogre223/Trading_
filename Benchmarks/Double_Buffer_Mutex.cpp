@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-using clock_t = std::chrono::steady_clock;
+using SteadyClock = std::chrono::steady_clock;
 using ns      = std::chrono::nanoseconds;
 using us      = std::chrono::microseconds;
 
@@ -40,11 +40,11 @@ public:
     void write(const T* data) {
         std::copy(data, data + size(), back_);
 
-        auto t0 = clock_t::now();
+        auto t0 = SteadyClock::now();
         {
             std::unique_lock<std::mutex> lk(mut_);
             // time spent competing for the lock is approximated by the elapsed from t0
-            auto t1 = clock_t::now();
+            auto t1 = SteadyClock::now();
             writer_lock_wait_ns_.fetch_add(
                 static_cast<uint64_t>(std::chrono::duration_cast<ns>(t1 - t0).count()),
                 std::memory_order_relaxed);
@@ -59,9 +59,9 @@ public:
     // Reader: wait for next seq; return new seq and snapshot pointer (by ref)
     uint64_t read(uint64_t local_seq, const T*& out_ptr) {
         std::unique_lock<std::mutex> lk(mut_);
-        auto t0 = clock_t::now();
+        auto t0 = SteadyClock::now();
         cv_.wait(lk, [&] { return local_seq != seq_num_; });
-        auto t1 = clock_t::now();
+        auto t1 = SteadyClock::now();
         reader_wait_ns_.fetch_add(
             static_cast<uint64_t>(std::chrono::duration_cast<ns>(t1 - t0).count()),
             std::memory_order_relaxed);
@@ -99,7 +99,7 @@ RunStats run_session(std::size_t N,
     std::atomic<bool> run{true};
     std::atomic<uint64_t> frames_written{0};
 
-    auto t_start = clock_t::now();
+    auto t_start = SteadyClock::now();
 
     std::thread writer([&] {
         std::vector<T> tmp(N);
@@ -132,7 +132,7 @@ RunStats run_session(std::size_t N,
     writer.join();
     reader.join();
 
-    auto t_end = clock_t::now();
+    auto t_end = SteadyClock::now();
 
     RunStats rs;
     rs.swaps = buf.swaps();
@@ -150,9 +150,9 @@ static void BM_DoubleBuffer_SPSC(benchmark::State& state) {
     const std::size_t N = 1000; // elements per frame
 
     for (auto _ : state) {
-        auto t0 = clock_t::now();
+        auto t0 = SteadyClock::now();
         RunStats rs = run_session<int>(N, total_frames, writer_sleep_us);
-        auto t1 = clock_t::now();
+        auto t1 = SteadyClock::now();
 
         // Use manual timing to account for wall time across threads
         state.SetIterationTime(std::chrono::duration<double>(t1 - t0).count());
@@ -170,10 +170,11 @@ static void BM_DoubleBuffer_SPSC(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_DoubleBuffer_SPSC)
-    // {frames, writer_sleep_us}
-    ->Args({500, 20000})     // ~20 ms producer delay (like your demo)
-    ->Args({5000, 0})        // no producer delay (max throughput)
-    ->Args({5000, 1000})     // light producer delay
-    ->UseManualTime();
+  ->Args({500, 20000})
+  ->Args({5000, 10000})
+  ->Args({5000, 1000})
+  ->Iterations(2)      // run the session once per Arg
+  ->Repetitions(1)     // and only one repetition
+  ->UseManualTime();
 
 BENCHMARK_MAIN();

@@ -1,0 +1,3 @@
+/home/oem/Desktop/Trading/Trading_/Benchmarks/build/CMakeFiles/doublebuf_bench.dir
+/home/oem/Desktop/Trading/Trading_/Benchmarks/build/CMakeFiles/edit_cache.dir
+/home/oem/Desktop/Trading/Trading_/Benchmarks/build/CMakeFiles/rebuild_cache.dir
