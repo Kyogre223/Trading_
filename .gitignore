@@ -1,0 +1,12 @@
+# Ignore JetBrains IDE project files
+.idea/
+*.iml
+
+# Build outputs
+cmake-build-*/
+build/
+out/
+
+# OS junk
+.DS_Store
+Thumbs.db
